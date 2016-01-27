@@ -18,8 +18,8 @@ class Camera
     virtual float getTMin() const = 0; 
 };
 
-/// TODO: Implement Perspective camera
-/// Fill in functions and add more fields if necessary
+// refer to assignment handout for the directions of the "direction", "up", and "horizontal" axes (under #5 of Implementation Notes)
+// (these vectors act as a coordinate system)
 class PerspectiveCamera : public Camera
 {
   public:
@@ -37,7 +37,9 @@ class PerspectiveCamera : public Camera
 
     virtual Ray generateRay(const Vector2f &point)
     {
+        //distance from camera to image plane
         float D = 1/(tan(_angle/2.0));
+        // calculate direction of ray using the basis of the current coordinate system
         Vector3f dir = D*_direction.normalized() + point[0]*_horizontal.normalized() + point[1]*_up.normalized();
         return Ray(_center, dir.normalized());
     }

@@ -6,8 +6,6 @@
 #include <vecmath.h>
 #include <cmath>
 
-// TODO: Implement Plane representing an infinite plane
-// Choose your representation, add more fields and fill in the functions
 class Plane: public Object3D
 {
   public:
@@ -19,6 +17,10 @@ class Plane: public Object3D
     	this->material = m;
     }
 
+    // parametric equation for ray: P(t) = R_0 + t*R_d (point = origin + direction*parameter)
+    // implicit plane equation: dot(normal, P) - d = 0 (P = point)
+    // combined equations: dot(normal, R_0) + t*dot(normal, R_d) - d
+    // solving for t: t = (d-dot(normal, R_0))/(dot(normal, R_d))
     virtual bool intersect(const Ray &r, float tmin, Hit &h) const 
     {
         Vector3f R_zero = r.getOrigin();
@@ -26,10 +28,13 @@ class Plane: public Object3D
         float denominator = Vector3f::dot(normal, R_d);
         float t;
         if (denominator == 0) {
+            // ray is parallel to plane
         	return false;
         } else {
         	t = (d-Vector3f::dot(normal, R_zero))/denominator;
         }
+
+        // update hit to reflect closest value of t
         float current_t = h.getT();
         if (t >= tmin && t < current_t) {
         	h.set(t, material, normal);
@@ -40,7 +45,7 @@ class Plane: public Object3D
 
  private:
  	Vector3f normal;
- 	float d;
+ 	float d; //offset of plane from origin
  	Material *material;
 };
 #endif //PLANE_H

@@ -13,6 +13,8 @@
 #include <algorithm>
 #include <vector>
 
+// NOTE: most (if not all) of the mathematics behind the code here can be found in the assignment 5 handout
+
 Renderer::Renderer(const ArgParser &args) :
     _args(args),
     _scene(args.input_file)
@@ -23,14 +25,14 @@ Renderer::~Renderer()
 {
 }
 
-// IMPLEMENT THESE FUNCTIONS
-// These function definitions are mere suggestions. Change them as you like.
+// gets a ray's reflected direction
 Vector3f 
 mirrorDirection(const Vector3f &normal, const Vector3f &incoming)
 {
-    return incoming - 2*(Vector3f::dot(incoming, normal))*normal;
+    return incoming - 2 * (Vector3f::dot(incoming, normal)) * normal;
 }
 
+// gets a ray's transmitted direction
 bool
 transmittedDirection(const Vector3f &normal, 
                      const Vector3f &incoming, 
@@ -38,27 +40,25 @@ transmittedDirection(const Vector3f &normal,
                      float index_t, 
                      Vector3f &transmitted)
 {
-    float sqrtValue =  1.0-(pow(index_i, 2.0)*(1.0-pow(Vector3f::dot(incoming, normal), 2.0)))/pow(index_t, 2.0);
+    float sqrtValue =  1.0 - (pow(index_i, 2.0) * (1.0 - pow(Vector3f::dot(incoming, normal), 2.0)))/pow(index_t, 2.0);
     if (sqrtValue >= 0){
-        transmitted = ((index_i*(incoming-normal*Vector3f::dot(incoming, normal)))/index_t - normal*sqrt(sqrtValue)).normalized();
+        transmitted = ((index_i * (incoming - normal * Vector3f::dot(incoming, normal)))/index_t - normal*sqrt(sqrtValue)).normalized();
         return true;
     } else {
         return false;
     }
 }
 
+// creates a motion blur, either horizontal or vertical
 void blur(const Image &oldImage, Image &newImage, bool horizontal) {
     float K [5] = {0.1201, 0.2339, 0.2931, 0.2339, 0.1201};
-    int width;
-    int height;
-    if (horizontal) {
-        width = oldImage.getWidth();
-        height = oldImage.getHeight();
-    } else {
-        width = oldImage.getHeight();
-        height = oldImage.getWidth();
+    int width = oldImage.getWidth();
+    int height = oldImage.getHeight();
+    if (!horizontal) {
+        int oldWidth = width;
+        width = height;
+        height = oldWidth;
     }
-    //std::cout << width << ", " << height << std::endl;
     for (float x=0.0; x<width; x++) {
         for (float y=0.0; y<height; y++) {
             float minusTwo = std::max(y-2, 0.0f);
@@ -66,67 +66,68 @@ void blur(const Image &oldImage, Image &newImage, bool horizontal) {
             float plusOne = std::min(y+1, height-1.0f);
             float plusTwo = std::min(y+2, height-1.0f);
             if (horizontal) {
-                //std::cout << x << ", " << y << std::endl;
                 Vector3f newColor = oldImage.getPixel(x, minusTwo)*K[0] + oldImage.getPixel(x, minusOne)*K[1] + oldImage.getPixel(x, y)*K[2] + oldImage.getPixel(x, plusOne)*K[3] + oldImage.getPixel(x, plusTwo) * K[3];
-                //newColor.print();
                 newImage.setPixel(x, y, newColor);
             } else {
-                //std::cout << y << ", " << x << std::endl;
                 Vector3f newColor = oldImage.getPixel(minusTwo, x)*K[0] + oldImage.getPixel(minusOne, x)*K[1] + oldImage.getPixel(y, x)*K[2] + oldImage.getPixel(plusOne, x)*K[3] + oldImage.getPixel(plusTwo, x) * K[3];
-                //newColor.print();
                 newImage.setPixel(y, x, newColor);
             }
         }
     }
 }
 
+// gets a pixel's neighbors
 std::vector<Vector2f> getNeighbors(float width, float height, float x, float y) {
     std::vector<Vector2f> neighbors;
+    // "neighbors" vector will also contain the center pixel (the one whose neighbors we're looking for)
+
+    // looks at x-1, x, and x+1
     for (float i=0.0; i<3.0; i++) {
         float neighbor_x = x+i-1;
-        float neighbor_x_new;
-        neighbor_x_new = std::max(0.0f, neighbor_x);
-        neighbor_x_new = std::min(neighbor_x, width-1);
-        for (float j=0.0; j<3.0; j++) {
-            float neighbor_y = y+j-1;
-            float neighbor_y_new;
-            neighbor_y_new = std::max(0.0f, neighbor_y);
-            neighbor_y_new = std::min(neighbor_y, height-1);
-            if (neighbor_x == neighbor_x_new && neighbor_y == neighbor_y_new) {
-                neighbors.push_back(Vector2f(neighbor_x, neighbor_y));
+        if (neighbor_x >= 0.0f && neighbor_x < width) {
+            // investigate each of the pixels with this x-value
+            // looks at y-1, y, and y+1
+            for (float j=0.0; j<3.0; j++) {
+                float neighbor_y = y+j-1;
+                if (neighbor_y >= 0.0f && neighbor_y < height) {
+                    // neighbor lies within image boundaries, push coordinates to the vector
+                    neighbors.push_back(Vector2f(neighbor_x, neighbor_y));
+                }
             }
-        } 
+        }
     }
     return neighbors;
 }
 
+// computes the average color of all of a pixel's neighbors
 Vector3f getAverageColor(Image &image, int x, int y) {
     int width = image.getWidth();
     int height = image.getHeight();
     std::vector<Vector2f> neighbors = getNeighbors(width, height, x, y);
     Vector3f localColor = Vector3f::ZERO;
+    // adds together all the neighbors' colors
     for (float i=0.0; i<neighbors.size(); i++) {
         Vector2f neighbor = neighbors[i];
         localColor += image.getPixel(neighbor[0], neighbor[1]);
     }
-    //localColor.print();
+    // divides total color by number of neighbors to average the color out
     localColor = Vector3f(localColor[0]/neighbors.size(), localColor[1]/neighbors.size(), localColor[2]/neighbors.size());
-    //localColor.print();
     return localColor;
 }
 
 void
 Renderer::Render()
 {
-    // TODO: IMPLEMENT 
-
     // This is the main loop that should be based on your assignment 4 main
     // loop. You will need to modify it to switch from ray casting to ray
     // tracing, to cast shadows and anti-aliasing (via jittering and
     // filtering).
+
+    // retrieves constants from _args
     int width = _args.width;
     int height = _args.height;
     if (_args.jitter) {
+        // triples the dimensions if jitter is on
         width *= 3;
         height *= 3;
     }
@@ -135,9 +136,13 @@ Renderer::Render()
     float maxDepth = _args.depth_max;
     std::string depthFilename = _args.depth_file;
     std::string normalFilename = _args.normals_file;
+
+    // three image types: the output image, a depth visualization image, and a normal visualization image
     Image output = Image(width, height); //should instantiate image of black pixels
     Image depth = Image(width, height);
     Image normal = Image(0, 0);
+
+    // if no "normal" argument specified in command line, don't make normal image
     bool normalFile = !normalFilename.empty();
     if (normalFile) {
         normal = Image(width, height);
@@ -150,37 +155,39 @@ Renderer::Render()
     //for each pixel
     for (float x=0.0; x<width; x++){
         for (float y=0.0; y<height; y++) {
-
-            //instantiates a hit object
+            //instantiate a hit object
             Hit h = Hit();
 
-            //instantiates a ray object
+            //instantiate a ray object
+            // r_i and r_j are offset values; randomly generated and used if jitter is on
             float r_i = 0.0;
             float r_j = 0.0;
             if (_args.jitter) {
                 r_i = static_cast <float> (rand()) / static_cast <float> (RAND_MAX) - 0.5;
                 r_j = static_cast <float> (rand()) / static_cast <float> (RAND_MAX) - 0.5;
             }
-            Ray ray = camera->generateRay(Vector2f(2*(x+r_i)/width-1, 2*(y+r_j)/height-1)); //check if only adding to x and y, or to whole argument
+            Ray ray = camera->generateRay(Vector2f(2*(x+r_i)/width-1, 2*(y+r_j)/height-1));
 
             //gets the background color
             Vector3f backgroundColor = _scene.getBackgroundColor(ray.getDirection());
 
-            //goes through each object in the group, checks if it intersects with the ray, and updates
+            // goes through each object in the group, checks if it intersects with the ray, and updates
             // the hit object accordingly
             bool intersect = group->intersect(ray, tmin, h);
             
             if (intersect) {
                 float t = h.getT();
                 Material * material = h.getMaterial();
-                Vector3f pixelColor = traceRay(ray, tmin, 0.0, 1.0, h); //or should 1.0 be material->getRefractionIndex()?
+                Vector3f pixelColor = traceRay(ray, tmin, 0.0, 1.0, h);
                 output.setPixel(x, y, pixelColor);
 
+                // calculates greyscale value for depth visualization
                 float interval = maxDepth-minDepth;
                 float greyscale = (t-minDepth)/interval;
                 depth.setPixel(x, y, Vector3f(1-greyscale));
 
                 if (normalFile) {
+                    // calculates RGB value to use for normal visualization based on normal direction
                     Vector3f vecNormal = h.getNormal();
                     float R = std::abs(vecNormal[0]);
                     float G = std::abs(vecNormal[1]);
@@ -188,16 +195,17 @@ Renderer::Render()
                     normal.setPixel(x, y, Vector3f(R, G, B));
                 }
             } else {
+                // no intersection; pixel set to background color
                 output.setPixel(x, y, backgroundColor);
             }
         }
     }
+
+    // generate the images
     if (_args.filter) {
         Image outputBlur = Image(width, height);
-        //output.getPixel(300, 300).print();
         blur(output, outputBlur, true);
         blur(output, outputBlur, false);
-        //outputBlur.getPixel(300, 300).print();
         int newWidth = width/3;
         int newHeight = height/3;
         Image outputBlurDown = Image(newWidth, newHeight);
@@ -206,7 +214,6 @@ Renderer::Render()
         for (int x=1; x<width; x+=3){
             for (int y=1; y<height; y+=3) {
                 Vector3f localColor = getAverageColor(outputBlur, x, y);
-                //localColor.print();
                 outputBlurDown.setPixel(x/3, y/3, localColor);
             }
         }
@@ -242,7 +249,7 @@ Renderer::traceRay(const Ray &ray,
                    float refr_index, 
                    Hit &hit) const
 {
-    float epsilon = 0.001f;
+    float epsilon = 0.001f; // when tracing rays, ray origin must be slightly away from surface (displace it by epsilon)
     int maxBounces = _args.bounces;
     bool shadows = _args.shadows;
     Group * group = _scene.getGroup();
@@ -251,10 +258,12 @@ Renderer::traceRay(const Ray &ray,
     Material * material = hit.getMaterial();
     float index_t = material->getRefractionIndex();
     if (refr_index > 1) {
+        // currently inside an object; ray will be going out into air, so next refraction index will be 1
         index_t = 1.0;
     }
     Vector3f newNormal = Vector3f(normal[0], normal[1], normal[2]);
     if (refr_index > index_t) {
+        // currently inside a object, normal must be reversed
         newNormal *= -1;
     }
 
@@ -263,9 +272,8 @@ Renderer::traceRay(const Ray &ray,
     Vector3f p = ray.pointAtParameter(t);
 
     int numLights = _scene.getNumLights();
-
     Vector3f dirToLight;
-    Vector3f col;
+    Vector3f color;
     float distanceToLight;
     Vector3f pixelColor = Vector3f::ZERO;
 
@@ -273,7 +281,8 @@ Renderer::traceRay(const Ray &ray,
     for(int i=0;i<numLights;i++) {
         //get the light source
         Light * light = _scene.getLight(i);
-        light->getIllumination(p, dirToLight, col, distanceToLight);
+        // get the direction and distance to the light, and the light's color
+        light->getIllumination(p, dirToLight, color, distanceToLight);
 
         //if shadows are enabled, do shadow casting
         if (shadows) {
@@ -289,14 +298,14 @@ Renderer::traceRay(const Ray &ray,
             //check if the ray hit any of the objects
             if (lightHit.getT() == distanceToLight) {
                 // if not, add the local shading term to the color
-                //std::cout << "hello" << std::endl;
-                pixelColor += material->shade(ray, hit, dirToLight, col);
+                pixelColor += material->shade(ray, hit, dirToLight, color);
             }
         // else do normal shading
         } else {
-            pixelColor += material->shade(ray, hit, dirToLight, col);
+            pixelColor += material->shade(ray, hit, dirToLight, color);
         }
     }
+
     // get the reflective component
     // get the ray and the hit
     Ray reflectedRay = Ray(p, mirrorDirection(newNormal, rayDirection));
@@ -310,33 +319,42 @@ Renderer::traceRay(const Ray &ray,
     Vector3f otherReflColor;
     if (reflectIntersect) {
         if (bounces < maxBounces) {
+            // gets the color reflected from other objects
             otherReflColor = traceRay(reflectedRay, tmin, bounces+1, refr_index, reflectedHit);
         } else {
+            // gets the object's local color
             otherReflColor = k_d;
-        }  
+        }
     } else {
+        // gets the background color
         otherReflColor = _scene.getBackgroundColor(reflectedRay.getDirection());
     }
     Vector3f totalReflColor = reflColor*otherReflColor;
 
-    //get the refraction component
-    //get the transmitted ray and the associated hit object
+    // get the refraction component
+    // check if transmission occurs
     Vector3f transmittedDir;
     bool transmitted = transmittedDirection(newNormal, rayDirection, refr_index, index_t, transmittedDir);
 
-    //get the color from the refracted ray (if refracted)
+    // get the color from the refracted ray (if refracted)
     Vector3f refrColor;
     if (transmitted) {
+        //get the transmitted ray and the associated hit object
         Ray transmittedRay = Ray(p, transmittedDir);
         Hit transmittedHit = Hit();
+
+        // see if ray intersects any of the objects
         bool refrIntersect = group->intersect(transmittedRay, tmin+epsilon, transmittedHit);
         if (refrIntersect){
             if (bounces < maxBounces) {
+                // trace ray and get the end color
                 refrColor = traceRay(transmittedRay, tmin, bounces+1, index_t, transmittedHit);
             } else {
+                // get the object's local color
                 refrColor = k_d;
             }
         } else {
+            // get the background color
             refrColor = _scene.getBackgroundColor(transmittedRay.getDirection());
         }
     } else {
@@ -345,10 +363,10 @@ Renderer::traceRay(const Ray &ray,
     Vector3f totalRefrColor = reflColor*refrColor;
 
     //get weights for Schlick's approximation to Fresnel's equation
-    float R0 = pow(((index_t-refr_index)/(index_t+refr_index)), 2.0);
+    float R0 = pow(((index_t - refr_index)/(index_t + refr_index)), 2.0);
     float c = clampApprox(rayDirection, normal, transmittedDir, refr_index, index_t);
-    float R = R0+(1.0-R0)*pow((1.0-c), 4.0);
-    pixelColor += R*totalReflColor + (1.0-R)*totalRefrColor;
+    float R = R0 + (1.0 - R0) * pow((1.0 - c), 4.0);
+    pixelColor += R * totalReflColor + (1.0-R) * totalRefrColor;
 
     Vector3f c_ambient = _scene.getAmbientLight();
     pixelColor += k_d*c_ambient;

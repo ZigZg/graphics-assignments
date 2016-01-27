@@ -16,6 +16,8 @@ vector<Vector3f> vecv;
 vector<Vector3f> vecn;
 
 // This is the list of faces (indices into vecv and vecn)
+// Explanation of format of vecf's contents is in assignment handout, under
+// section 2.3, "Mesh Loading and Display"
 vector<vector<unsigned> > vecf;
 
 
@@ -43,7 +45,7 @@ void keyboardFunc( unsigned char key, int x, int y )
         exit(0);
         break;
     case 'c':
-        // add code to change color here
+        // color-changing code
 		colorcounter += 1; 
         break;
     default:
@@ -60,20 +62,17 @@ void specialFunc( int key, int x, int y )
 {
     switch ( key )
     {
+    // changes the light position
     case GLUT_KEY_UP:
-        // add code to change light position
 		lightY += 0.5f;
 		break;
     case GLUT_KEY_DOWN:
-        // add code to change light position
 		lightY -= 0.5f;
 		break;
     case GLUT_KEY_LEFT:
-        // add code to change light position
 		lightX -= 0.5f;
 		break;
     case GLUT_KEY_RIGHT:
-        // add code to change light position
 		lightX += 0.5f;
 		break;
     }
@@ -108,7 +107,7 @@ void drawScene(void)
                                  {0.5, 0.9, 0.3, 1.0},
                                  {0.3, 0.8, 0.9, 1.0} };
     
-	// Here we use the first color entry as the diffuse color
+	// Here we use the color counter to select the corresponding entry as the diffuse color
     glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, diffColors[colorcounter % 4]);
 
 	// Define specular color and shininess
@@ -133,13 +132,17 @@ void drawScene(void)
 	// it with code which draws the object you loaded.
 	//glutSolidTeapot(1.0);
     
+    // object-loading code
     for (unsigned int j=0; j < vecf.size(); j++) {
+        // indices for vecv and vecn
         unsigned a = vecf[j][0];
         unsigned c = vecf[j][1];
         unsigned d = vecf[j][2];
         unsigned f = vecf[j][3];
         unsigned g = vecf[j][4];
         unsigned i = vecf[j][5];
+
+        //draws the face's vertices and corresponding normals
         glBegin(GL_TRIANGLES);
         glNormal3d(vecn[c-1][0], vecn[c-1][1], vecn[c-1][2]);
         glVertex3d(vecv[a-1][0], vecv[a-1][1], vecv[a-1][2]);
@@ -190,23 +193,25 @@ void loadInput()
         stringstream ss(buffer);
         string s;
         ss >> s;
+        // if a vertex
         if (s == "v") {
             Vector3f v;
             ss >> v[0] >> v[1] >> v[2];
             vecv.push_back(v);
+        // else if a normal
         } else if (s == "vn") {
             Vector3f v;
             ss >> v[0] >> v[1] >> v[2];
             vecn.push_back(v);
+        // else if a face
         } else if (s == "f") {
+            // contains the indices into vecv and vecn (6 in total)
             vector<unsigned> v;
-            vector<string> values;
-            string f1, f2, f3;
-            ss >> f1 >> f2 >> f3;
-            values.push_back(f1);
-            values.push_back(f2);
-            values.push_back(f3);
+            Vector3f values;
+            //each of the elements is of the format "a/b/c"
+            ss >> values[0] >> values[1] >> values[2];
             for (unsigned int i=0; i < values.size(); i++) {
+                //parses and selects the first and last integers of each element (i.e. "a" and "c")
                 string value = values[i];
                 string delim = "/";
                 int first = value.find(delim);

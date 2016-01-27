@@ -8,9 +8,6 @@
 #include <iostream>
 #include <vector>
 
-/// TODO: 
-/// Implement Group
-/// Add data structure to store a list of Object* 
 class Group : public Object3D
 {
   public:
@@ -43,7 +40,7 @@ class Group : public Object3D
     // Add object to group
     void addObject(Object3D *obj)
     {
-        groupSize++; //check if this works
+        groupSize++;
         objectList.push_back(obj);
     }
 
@@ -55,7 +52,7 @@ class Group : public Object3D
 
   private:
     int groupSize;
-    std::vector<Object3D*> objectList; //check this
+    std::vector<Object3D*> objectList;
 };
 
 #endif

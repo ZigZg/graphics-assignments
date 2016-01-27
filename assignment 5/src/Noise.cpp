@@ -23,11 +23,15 @@ Noise::Noise(int _octaves,
     init = true;
 }
 
+// computes the color at a certain position due to Perlin Noise
 Vector3f
 Noise::getColor(const Vector3f &pos)
 {
-    float M = sin(frequency*pos[0] + amplitude*perlinOctaveNoise(pos, octaves));
+    // computes the noise function value at a certain position
+    float M = sin(frequency * pos[0] + amplitude * perlinOctaveNoise(pos, octaves));
+    // clamps the value between 0 and 1 (analogous to shifting the function up, then shrinking it)
     M = (M+1)/2.0;
+    // uses the above value to interpolate between two colors
     return M*color[0]+(1-M)*color[1];
 }
 

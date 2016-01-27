@@ -10,11 +10,13 @@
 class Object3D
 {
   public:
+    // Constructor
     Object3D()
     {
         material = NULL;
     }
 
+    // Destructor
     virtual ~Object3D() {}
 
     Object3D(Material *material)
@@ -26,10 +28,12 @@ class Object3D
         return type;
     }
 
+    // returns the material
     Material * getMaterial() const {
         return material;
     }
 
+    //checks if specified ray intersects with object
     virtual bool intersect(const Ray &r, float tmin, Hit &h) const = 0;
 
   private:

@@ -9,7 +9,6 @@
 #include "Ray.h"
 #include "Texture.h"
 
-// TODO: Implement Shade function that uses ambient, diffuse, specular and texture
 class Material
 {
   public:
@@ -31,17 +30,22 @@ class Material
         return _diffuseColor;
     }
 
+    // diffuse shading component
     float
-    clampDiffuse(const Vector3f &L, const Vector3f &N)
+    clampDiffuse(const Vector3f &dirToLight, const Vector3f &normal)
     {
-        return std::max(Vector3f::dot(L, N), 0.0f);
+        return std::max(Vector3f::dot(dirToLight, normal), 0.0f);
     }
 
+    // specular component in Phong shading model
     float
-    clampSpecular(const Vector3f &L, const Vector3f &R) {
-        if (Vector3f::dot(L, R) > 0) {
-            return pow(Vector3f::dot(L, R), _shininess);
-        } else {return 0;}
+    clampSpecular(const Vector3f &dirToLight, const Vector3f &dirReflect) {
+        float dotProduct = Vector3f::dot(dirToLight, dirReflect)
+        if (dotProduct > 0) {
+            return pow(dotProduct, _shininess);
+        } else {
+            return 0;
+        }
     }
 
     //shade as a result of a single light
@@ -52,14 +56,18 @@ class Material
     {
         Vector3f d = ray.getDirection();
         Vector3f normal = hit.getNormal();
-        Vector3f R = d-2*Vector3f::dot(d, normal)*normal;
         Vector3f k_d = _diffuseColor;
+
+        // calculates direction of reflected ray
+        Vector3f dirReflect = d - 2 * Vector3f::dot(d, normal) * normal;
+
+        // if the material has a texture, get the color at the texture's corresponding uv coordinates
         if(_texture.isValid()) {
             Vector2f uv = hit.getTexCoord();
             k_d = _texture.getTexel(uv[0], uv[1]);
         }
 
-        return clampDiffuse(dirToLight, normal)*lightColor*k_d + clampSpecular(dirToLight, R)*lightColor*_specularColor;
+        return clampDiffuse(dirToLight, normal) * lightColor * k_d + clampSpecular(dirToLight, dirReflect) * lightColor * _specularColor;
     }
 
     void loadTexture(const std::string &filename)

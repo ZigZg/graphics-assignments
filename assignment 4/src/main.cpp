@@ -22,7 +22,7 @@ main(int argc, const char **argv)
     float maxDepth = 0.0f;
     std::string normalFilename;
 
-    // Fill in your implementation here.
+    // Filled in my implementation here.
     // Parse arguments.
     std::string arg;
     for (int i=1; i<argc; i++){

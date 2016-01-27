@@ -23,7 +23,6 @@ class Renderer
     void Render();
 
   private:
-    // IMPLEMENT
     Vector3f traceRay(const Ray &ray, float tmin, int bounces, 
                       float refr_index, Hit &hit) const;
     Vector3f computeShadowColor(Ray &ray, float distanceToLight) const;
